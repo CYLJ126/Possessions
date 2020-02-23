@@ -1,0 +1,47 @@
+package com.zhangsc.netty.nettyinaction.cha11;
+
+import io.netty.channel.*;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedStream;
+import io.netty.handler.stream.ChunkedWriteHandler;
+
+import java.io.File;
+import java.io.FileInputStream;
+
+/**
+ * @ClassName ChunkedWriteHandlerInitializer  ✺
+ * @Description ✻ 代码清单11-12 使用ChunkedStream传输文件内容
+ * @Author zhangsc ≧◔◡◔≦
+ * @Date 2020/2/8 21:02 ✾
+ * @Version 1.0.0 ✵
+ **/
+public class ChunkedWriteHandlerInitializer extends ChannelInitializer<Channel> {
+    private final File file;
+    private final SslContext sslCtx;
+
+    public ChunkedWriteHandlerInitializer(File file, SslContext sslCtx) {
+        this.file = file;
+        this.sslCtx = sslCtx;
+    }
+
+    @Override
+    protected void initChannel(Channel ch) throws Exception {
+        ChannelPipeline pipeline = ch.pipeline();
+        //添加SslHandler
+        pipeline.addLast(new SslHandler(sslCtx.newEngine(ch.alloc())));
+        //添加ChunkedWriteHandler以处理作为ChunkedInput传入的数据
+        pipeline.addLast(new ChunkedWriteHandler());
+        //一旦连接建立，WriteStreamHandler就开始写文件数据
+        pipeline.addLast(new WriteStreamHandler());
+    }
+
+    private final class WriteStreamHandler extends ChannelInboundHandlerAdapter {
+        @Override
+        public void channelActive(ChannelHandlerContext context) throws Exception {
+            super.channelActive(context);
+            //使用ChunkedInput写文件数据
+            context.writeAndFlush(new ChunkedStream(new FileInputStream(file)));
+        }
+    }
+}
